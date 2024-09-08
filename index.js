@@ -155,30 +155,46 @@ app.post("/logout", (req, res) => {
 
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
-  console.log("register : "  , username, password);
+  console.log("register:", username, password);
+
   try {
+    // Check if the username already exists
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Hash the password
     const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
+
+    // Create a new user
     const createdUser = await User.create({
       username: username,
       password: hashedPassword,
     });
+
+    // Generate JWT token
     jwt.sign(
       { userId: createdUser._id, username },
       jwtSecret,
       {},
       (err, token) => {
-        if (err) throw err;
+        if (err) {
+          return res.status(500).json({ error: 'Error generating token' });
+        }
         res
           .cookie("token", token, { sameSite: "none", secure: true })
           .status(201)
-          .json({
-            id: createdUser._id,
-          });
+          .json({ id: createdUser._id });
       }
     );
   } catch (err) {
-    if (err) throw err;
-    res.status(500).json("error");
+    // Handle MongoDB duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
