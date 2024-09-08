@@ -29,18 +29,15 @@ app.use(express.json());
 app.use(cookieParser());
 const allowedOrigins = ["https://chatapp-rosy-eta.vercel.app/"];
 
-app.use(
-  cors({
-    credentials: true,
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-  })
-);
+const corsOptions = {
+  origin: 'https://chatapp-rosy-eta.vercel.app', // Replace with your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true, // If you need to allow credentials such as cookies
+};
+
+// Use CORS middleware
+app.use(cors(corsOptions));
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
