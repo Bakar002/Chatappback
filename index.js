@@ -13,14 +13,21 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 dotenv.config();
-mongoose.connect(process.env.MONGO_URL);
+mongoose.connect(process.env.MONGO_URL,)
+  .then(() => {
+    console.log("Successfully connected to MongoDB");
+  })
+  .catch((error) => {
+    console.error("Error connecting to MongoDB:", error);
+  });
+
 const jwtSecret = process.env.JWT_SECRET;
 const bcryptSalt = bcrypt.genSaltSync(10);
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-const allowedOrigins = ["https://final-client2.onrender.com"];
+const allowedOrigins = ["http://localhost:5173"];
 
 app.use(
   cors({
@@ -151,6 +158,7 @@ app.post("/logout", (req, res) => {
 
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
+  console.log("register : "  , username, password);
   try {
     const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
     const createdUser = await User.create({
@@ -177,7 +185,10 @@ app.post("/register", async (req, res) => {
   }
 });
 
-const server = app.listen(4040);
+const port = 8000;
+const server = app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
 
 const wss = new ws.WebSocketServer({ server });
 wss.on("connection", (connection, req) => {
