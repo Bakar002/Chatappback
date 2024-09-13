@@ -33,7 +33,7 @@ app.use(cookieParser());
 // const allowedOrigins = ["https://chatapp-rosy-eta.vercel.app/"];
 
 const corsOptions = {
-  origin: 'https://chatapp-rosy-eta.vercel.app/', // Replace with your frontend URL
+  origin: 'https://chatapp-rosy-eta.vercel.app', // Replace with your frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true, // If you need to allow credentials such as cookies
