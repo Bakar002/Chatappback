@@ -140,19 +140,23 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    console.log(req)
+
+
+    // Find the user by username
     const foundUser = await User.findOne({ username });
 
     if (!foundUser) {
       return res.status(404).json({ error: "User not registered" });
     }
 
+    // Check if the password matches
     const passOk = bcrypt.compareSync(password, foundUser.password);
 
     if (!passOk) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
+    // Generate JWT token
     jwt.sign(
       { userId: foundUser._id, username },
       process.env.JWT_SECRET,
@@ -162,11 +166,13 @@ app.post("/login", async (req, res) => {
           console.error("Error signing JWT:", err);
           return res.status(500).json({ error: "Server error" });
         }
+
+        // Send response with the user profile image
         res.cookie("token", token, { sameSite: "none", secure: true }).json({
           id: foundUser._id,
           username: foundUser.username,
           token,
-          userProfile: foundUser.profileImage,
+          userProfile: foundUser.profileImage, // Include the profile image in the response
         });
       }
     );
@@ -176,10 +182,10 @@ app.post("/login", async (req, res) => {
   }
 });
 
+
 app.post("/logout", (req, res) => {
   res.cookie("token", "", { sameSite: "none", secure: true }).json("ok");
 });
-
 app.post("/register", upload.single("profileImage"), async (req, res) => {
   const { username, password } = req.body;
   console.log("register:", username, password);
@@ -194,8 +200,8 @@ app.post("/register", upload.single("profileImage"), async (req, res) => {
     // Hash the password
     const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
 
-    // Get the uploaded image URL from Cloudinary
-    const profileImageUrl = req.file ? req.file.path : "";
+    // Get the uploaded image URL (store it on a cloud service or file system)
+    const profileImageUrl = req.file ? req.file.path : ""; // Replace with your Cloudinary URL logic
 
     // Create a new user
     const createdUser = await User.create({
@@ -224,7 +230,7 @@ app.post("/register", upload.single("profileImage"), async (req, res) => {
     if (err.code === 11000) {
       return res.status(400).json({ error: "Username already exists" });
     }
-    console.error("Error:", err);
+
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
