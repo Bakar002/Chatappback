@@ -12,9 +12,13 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    profileImage: {
+      type: String,
+      default: "", // This will store the URL of the profile image uploaded to Cloudinary
+    },
   },
   { timestamps: true }
 );
 
-const UserModel = mongoose.model('User', UserSchema);
+const UserModel = mongoose.model("User", UserSchema);
 module.exports = UserModel;

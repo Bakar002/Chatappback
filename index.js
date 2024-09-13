@@ -11,6 +11,9 @@ const ws = require("ws");
 const fs = require("fs");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
+const multer = require("multer");
 
 dotenv.config();
 mongoose.connect(process.env.MONGO_URL,)
@@ -27,10 +30,10 @@ const bcryptSalt = bcrypt.genSaltSync(10);
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-const allowedOrigins = ["https://chatapp-rosy-eta.vercel.app/"];
+// const allowedOrigins = ["https://chatapp-rosy-eta.vercel.app/"];
 
 const corsOptions = {
-  origin: 'https://chatapp-rosy-eta.vercel.app', // Replace with your frontend URL
+  origin: 'https://chatapp-rosy-eta.vercel.app/', // Replace with your frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true, // If you need to allow credentials such as cookies
@@ -46,6 +49,23 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
+
+// Set up Cloudinary storage for multer
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "profile_images", // Cloudinary folder name
+    allowed_formats: ["jpg", "jpeg", "png"],
+  },
+});
+const upload = multer({ storage: storage });
+
 
 const bucketName = process.env.AWS_S3_BUCKET_NAME;
 
@@ -115,6 +135,7 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    console.log(req)
     const foundUser = await User.findOne({ username });
 
     if (!foundUser) {
@@ -153,7 +174,7 @@ app.post("/logout", (req, res) => {
   res.cookie("token", "", { sameSite: "none", secure: true }).json("ok");
 });
 
-app.post("/register", async (req, res) => {
+app.post("/register", upload.single("profileImage"), async (req, res) => {
   const { username, password } = req.body;
   console.log("register:", username, password);
 
@@ -161,16 +182,20 @@ app.post("/register", async (req, res) => {
     // Check if the username already exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ error: 'Username already exists' });
+      return res.status(400).json({ error: "Username already exists" });
     }
 
     // Hash the password
     const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
 
+    // Get the uploaded image URL from Cloudinary
+    const profileImageUrl = req.file ? req.file.path : "";
+
     // Create a new user
     const createdUser = await User.create({
       username: username,
       password: hashedPassword,
+      profileImage: profileImageUrl, // Save the image URL in the database
     });
 
     // Generate JWT token
@@ -180,7 +205,7 @@ app.post("/register", async (req, res) => {
       {},
       (err, token) => {
         if (err) {
-          return res.status(500).json({ error: 'Error generating token' });
+          return res.status(500).json({ error: "Error generating token" });
         }
         res
           .cookie("token", token, { sameSite: "none", secure: true })
@@ -191,13 +216,12 @@ app.post("/register", async (req, res) => {
   } catch (err) {
     // Handle MongoDB duplicate key error
     if (err.code === 11000) {
-      return res.status(400).json({ error: 'Username already exists' });
+      return res.status(400).json({ error: "Username already exists" });
     }
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 const port = 8001;
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
