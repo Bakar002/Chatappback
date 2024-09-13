@@ -161,6 +161,7 @@ app.post("/login", async (req, res) => {
           id: foundUser._id,
           username: foundUser.username,
           token,
+          userProfile: foundUser.profileImage,
         });
       }
     );
