@@ -115,9 +115,14 @@ app.get("/messages/:userId", async (req, res) => {
 });
 
 app.get("/people", async (req, res) => {
-  const users = await User.find({}, { _id: 1, username: 1 });
-  res.json(users);
+  try {
+    const users = await User.find({}, { _id: 1, username: 1, profileImage: 1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching users", error });
+  }
 });
+
 
 app.get("/profile", (req, res) => {
   const token = req.cookies?.token;
