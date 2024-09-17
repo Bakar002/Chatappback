@@ -124,60 +124,145 @@ app.get("/people", async (req, res) => {
 });
 
 
-app.get("/profile", (req, res) => {
-  const token = req.cookies?.token;
-  if (token) {
-    jwt.verify(token, jwtSecret, {}, (err, userData) => {
-      if (err) throw err;
-      res.json(userData);
+const nodemailer = require("nodemailer");
+
+// Nodemailer setup
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com", // You can use other services like SendGrid, etc.
+  port:465,
+  secure: true, // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address
+    pass: process.env.EMAIL_PASS, // Your email password
+  },
+});
+
+// Registration route
+app.post("/register", upload.single("profileImage"), async (req, res) => {
+
+  const { username, password, email } = req.body;
+  console.log("register:", username, password,email);
+
+  try {
+    // Check if the username already exists
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    // Hash the password
+    const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
+
+    // Get the uploaded image URL
+    const profileImageUrl = req.file ? req.file.path : "";
+
+    // Create a new user with an unverified status
+    const createdUser = await User.create({
+      username: username,
+      password: hashedPassword,
+      email: email,
+      profileImage: profileImageUrl,
+      isVerified: false, // User is not verified yet
     });
-  } else {
-    res.status(401).json("no token");
+
+    // Generate JWT token for email verification
+    jwt.sign(
+      { userId: createdUser._id, username, email },
+      jwtSecret,
+      { expiresIn: '1d' }, // Token valid for 1 day
+      async (err, token) => {
+        if (err) {
+          return res.status(500).json({ error: "Error generating verification token" });
+        }
+
+        // Email verification link
+        const verificationLink = `https://chatappback-9eg8.onrender.com/verify-email?token=${token}`;
+
+        // Send verification email
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: "Verify your email address",
+          html: `<p>Hi ${username},</p>
+                 <p>Please click on the link below to verify your email address:</p>
+                 <a href="${verificationLink}">Verify Email</a>`,
+        });
+
+        res.status(201).json({ message: "Registration successful. Please verify your email." });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// Email verification route
+app.get("/verify-email", async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ error: "Missing token" });
+  }
+
+  // Verify JWT token
+  jwt.verify(token, jwtSecret, async (err, decoded) => {
+    if (err) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    // Find the user and update their verification status
+    const { userId } = decoded;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    res.json({ message: "Email successfully verified. You can now log in." });
+  });
+});
+
 
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-
-
-    // Find the user by username
     const foundUser = await User.findOne({ username });
 
     if (!foundUser) {
       return res.status(404).json({ error: "User not registered" });
     }
 
-    // Check if the password matches
+    if (!foundUser.isVerified) {
+      return res.status(401).json({ error: "Please verify your email before logging in" });
+    }
+
     const passOk = bcrypt.compareSync(password, foundUser.password);
 
     if (!passOk) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Generate JWT token
     jwt.sign(
       { userId: foundUser._id, username },
       process.env.JWT_SECRET,
       {},
       (err, token) => {
         if (err) {
-          console.error("Error signing JWT:", err);
           return res.status(500).json({ error: "Server error" });
         }
 
-        // Send response with the user profile image
         res.cookie("token", token, { sameSite: "none", secure: true }).json({
           id: foundUser._id,
           username: foundUser.username,
           token,
-          userProfile: foundUser.profileImage, // Include the profile image in the response
+          userProfile: foundUser.profileImage,
         });
       }
     );
   } catch (error) {
-    console.error("Error logging in:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
