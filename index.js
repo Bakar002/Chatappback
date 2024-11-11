@@ -271,54 +271,54 @@ app.post("/login", async (req, res) => {
 app.post("/logout", (req, res) => {
   res.cookie("token", "", { sameSite: "none", secure: true }).json("ok");
 });
-app.post("/register", upload.single("profileImage"), async (req, res) => {
-  const { username, password } = req.body;
-  console.log("register:", username, password);
+// app.post("/register", upload.single("profileImage"), async (req, res) => {
+//   const { username, password } = req.body;
+//   console.log("register:", username, password);
 
-  try {
-    // Check if the username already exists
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ error: "Username already exists" });
-    }
+//   try {
+//     // Check if the username already exists
+//     const existingUser = await User.findOne({ username });
+//     if (existingUser) {
+//       return res.status(400).json({ error: "Username already exists" });
+//     }
 
-    // Hash the password
-    const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
+//     // Hash the password
+//     const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
 
-    // Get the uploaded image URL (store it on a cloud service or file system)
-    const profileImageUrl = req.file ? req.file.path : ""; // Replace with your Cloudinary URL logic
+//     // Get the uploaded image URL (store it on a cloud service or file system)
+//     const profileImageUrl = req.file ? req.file.path : ""; // Replace with your Cloudinary URL logic
 
-    // Create a new user
-    const createdUser = await User.create({
-      username: username,
-      password: hashedPassword,
-      profileImage: profileImageUrl, // Save the image URL in the database
-    });
+//     // Create a new user
+//     const createdUser = await User.create({
+//       username: username,
+//       password: hashedPassword,
+//       profileImage: profileImageUrl, // Save the image URL in the database
+//     });
 
-    // Generate JWT token
-    jwt.sign(
-      { userId: createdUser._id, username },
-      jwtSecret,
-      {},
-      (err, token) => {
-        if (err) {
-          return res.status(500).json({ error: "Error generating token" });
-        }
-        res
-          .cookie("token", token, { sameSite: "none", secure: true })
-          .status(201)
-          .json({ id: createdUser._id });
-      }
-    );
-  } catch (err) {
-    // Handle MongoDB duplicate key error
-    if (err.code === 11000) {
-      return res.status(400).json({ error: "Username already exists" });
-    }
+//     // Generate JWT token
+//     jwt.sign(
+//       { userId: createdUser._id, username },
+//       jwtSecret,
+//       {},
+//       (err, token) => {
+//         if (err) {
+//           return res.status(500).json({ error: "Error generating token" });
+//         }
+//         res
+//           .cookie("token", token, { sameSite: "none", secure: true })
+//           .status(201)
+//           .json({ id: createdUser._id });
+//       }
+//     );
+//   } catch (err) {
+//     // Handle MongoDB duplicate key error
+//     if (err.code === 11000) {
+//       return res.status(400).json({ error: "Username already exists" });
+//     }
 
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// });
 const port = 8001;
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
